@@ -1,174 +1,274 @@
-### Guida Step-by-Step per il Fine-Tuning di YOLOv8 per Rilevamento di Bounding Box e Segmentazione
+# YOLOv8 FastAPI Object Detection and Segmentation API
 
-Questa guida descrive il processo di **fine-tuning di YOLOv8** per due task principali: **rilevamento di oggetti (bounding box)** e **segmentazione di oggetti** utilizzando dataset personalizzati. Utilizzerai modelli YOLOv8 pre-addestrati (`yolov8s.pt` per il rilevamento e `yolov8s-seg.pt` per la segmentazione) per effettuare il fine-tuning sui tuoi dataset.
+This project provides a FastAPI application that serves as an API for object detection and segmentation using YOLOv8 models from Ultralytics. It allows users to:
 
----
+- Perform object detection and segmentation on input images.
+- Save outputs (annotated images, JSON data, cropped images) in specified directories.
+- Process images by applying bounding boxes and segmentation masks, tinting specific pixels.
+- Customize tint colors for image processing.
 
-### **1. Struttura della Directory del Progetto**
+## Table of Contents
 
-Assicurati che il tuo progetto sia organizzato come segue:
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Running the Application](#running-the-application)
+- [API Endpoints](#api-endpoints)
+  - [Object Detection Endpoint](#object-detection-endpoint)
+  - [Segmentation Endpoint](#segmentation-endpoint)
+  - [Image Processing Endpoint](#image-processing-endpoint)
+- [Usage Examples](#usage-examples)
+  - [Performing Object Detection](#performing-object-detection)
+  - [Performing Segmentation](#performing-segmentation)
+  - [Processing an Image](#processing-an-image)
+- [Project Structure](#project-structure)
+- [Customization](#customization)
+- [Notes](#notes)
+- [License](#license)
 
-```
-/tuo_progetto
-  ├── /bbox_dataset
-  │   ├── /images
-  │   │   ├── /train  # Immagini di training per i bounding box
-  │   │   └── /val    # Immagini di validazione per i bounding box
-  │   ├── /labels
-  │   │   ├── /train  # Annotazioni dei bounding box per il training
-  │   │   └── /val    # Annotazioni dei bounding box per la validazione
-  │   └── bbox_data.yaml  # File di configurazione del dataset di bounding box
-  ├── /seg_dataset
-  │   ├── /images
-  │   │   ├── /train  # Immagini di training per la segmentazione
-  │   │   └── /val    # Immagini di validazione per la segmentazione
-  │   ├── /labels
-  │   │   ├── /train  # Maschere di segmentazione per il training
-  │   │   └── /val    # Maschere di segmentazione per la validazione
-  │   └── seg_data.yaml  # File di configurazione del dataset di segmentazione
-  ├── train_yolov8.py   # Script Python per addestrare YOLOv8 (bounding box e segmentazione)
-```
+## Features
 
-### **2. Preparare i File di Configurazione del Dataset**
+- **Object Detection**: Detect objects in images using a YOLOv8 detection model.
+- **Segmentation**: Segment objects in images using a YOLOv8 segmentation model.
+- **Output Management**: Save outputs in specified directories, with separation between detection and segmentation results.
+- **Image Processing**: Apply bounding boxes and segmentation masks to images, tinting specific pixels based on user input.
+- **Customization**: Users can specify output directories and tint colors for image processing.
 
-Sono necessari due file di configurazione `.yaml` che definiscono la struttura del tuo dataset: uno per l'addestramento del rilevamento di bounding box e uno per la segmentazione.
+## Prerequisites
 
-#### **`bbox_data.yaml`** (Config del Dataset di Bounding Box):
-```yaml
-train: path/to/bbox_dataset/images/train  # Percorso delle immagini di training
-val: path/to/bbox_dataset/images/val      # Percorso delle immagini di validazione
-nc: 1                                     # Numero di classi
-names: ['oggetto']                        # Nome della/e classe/i
-```
+- Python 3.7 or higher
+- Trained YOLOv8 models for detection and segmentation
+- Required Python packages (see Installation)
 
-#### **`seg_data.yaml`** (Config del Dataset di Segmentazione):
-```yaml
-train: path/to/seg_dataset/images/train   # Percorso delle immagini di training
-val: path/to/seg_dataset/images/val       # Percorso delle immagini di validazione
-nc: 1                                     # Numero di classi
-names: ['oggetto']                        # Nome della/e classe/i
-```
+## Installation
 
-### **3. Installare YOLOv8**
+1. **Clone the Repository**
 
-Prima di eseguire lo script di fine-tuning, installa la versione necessaria di YOLOv8 utilizzando il seguente comando:
+   ```bash
+   git clone https://github.com/your_username/your_repository.git
+   cd your_repository
+   ```
 
-```bash
-pip install ultralytics==8.0.28
-```
+2. **Create a Virtual Environment (Optional but Recommended)**
 
-### **4. Script Python per il Fine-Tuning (train_yolov8.py)**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   ```
 
-Ecco lo script completo per effettuare il fine-tuning di YOLOv8 per entrambi i task: **rilevamento di bounding box** e **segmentazione**.
+3. **Install Required Packages**
+
+   ```bash
+   pip install fastapi uvicorn pillow ultralytics opencv-python numpy
+   ```
+
+   - **Package Descriptions**:
+     - `fastapi`: Web framework for building APIs.
+     - `uvicorn`: ASGI server to run the FastAPI application.
+     - `pillow`: Image processing library.
+     - `ultralytics`: Library containing YOLOv8 models.
+     - `opencv-python`: Image processing library.
+     - `numpy`: Library for numerical computations.
+
+4. **Download or Place Your Trained Models**
+
+   - Place your trained YOLOv8 detection and segmentation models in appropriate directories.
+   - Update the model paths in the script accordingly.
+
+## Running the Application
+
+1. **Update Model Paths**
+
+   In the script `main.py`, update the `DETECT_MODEL_PATH` and `SEG_MODEL_PATH` variables to point to your trained models.
+
+   ```python
+   DETECT_MODEL_PATH = 'path_to_your_detection_model.pt'
+   SEG_MODEL_PATH = 'path_to_your_segmentation_model.pt'
+   ```
+
+2. **Run the FastAPI Application**
+
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8100 --reload
+   ```
+
+   - The application will start running at `http://0.0.0.0:8100`.
+
+## API Endpoints
+
+### Object Detection Endpoint
+
+- **URL**: `/predict/detect`
+- **Method**: `POST`
+- **Request Body**:
+
+  ```json
+  {
+    "image_base64": "base64_encoded_image_string",
+    "output_subdir": "optional_output_subdirectory_name"
+  }
+  ```
+
+- **Description**:
+
+  - Performs object detection on the input image.
+  - Saves outputs (annotated image, detections JSON, cropped images) in the specified output subdirectory under `outputs/`.
+  - Only the most centrally located object is processed if multiple detections are found.
+
+### Segmentation Endpoint
+
+- **URL**: `/predict/segment`
+- **Method**: `POST`
+- **Request Body**:
+
+  ```json
+  {
+    "image_base64": "base64_encoded_image_string",
+    "output_subdir": "optional_output_subdirectory_name"
+  }
+  ```
+
+- **Description**:
+
+  - Performs segmentation on the input image.
+  - Saves outputs (annotated image, segmentations JSON, cropped images) in the specified output subdirectory under `outputs/`.
+  - Only the most centrally located object is processed if multiple segmentations are found.
+
+### Image Processing Endpoint
+
+- **URL**: `/process/image`
+- **Method**: `POST`
+- **Request Body**:
+
+  ```json
+  {
+    "image_base64": "base64_encoded_image_string",
+    "output_subdir": "name_of_output_subdirectory",
+    "tint_color": [R, G, B]  // Optional, RGB values between 0 and 255
+  }
+  ```
+
+- **Description**:
+
+  - Processes the input image using the previously saved detection and segmentation outputs.
+  - Applies the bounding box and segmentation mask, tinting pixels inside the bounding box but not in the segmentation mask with the specified color.
+  - Saves the processed image in the specified output directory.
+
+## Usage Examples
+
+### Performing Object Detection
 
 ```python
-# Installare la libreria YOLOv8
-# pip install ultralytics==8.0.28
+import requests
+import base64
 
-# Importare il pacchetto YOLO da Ultralytics
-from ultralytics import YOLO
+# Read and encode the image
+with open('input_image.jpg', 'rb') as image_file:
+    image_base64 = base64.b64encode(image_file.read()).decode()
 
-# Definire i percorsi ai dataset di bounding box e segmentazione
-BBOX_DATA_YAML_PATH = 'path/to/bbox_data.yaml'  # Sostituisci con il percorso reale di bbox_data.yaml
-SEG_DATA_YAML_PATH = 'path/to/seg_data.yaml'    # Sostituisci con il percorso reale di seg_data.yaml
+# Prepare the payload
+payload = {
+    'image_base64': image_base64,
+    'output_subdir': 'example_directory'  # Optional
+}
 
-# Percorso del modello per Bounding Box
-MODEL_PATH_DETECT = 'yolov8s.pt'  # Modello YOLOv8 pre-addestrato per il rilevamento
+# Send the POST request
+response = requests.post('http://127.0.0.1:8100/predict/detect', json=payload)
 
-# Inizializzare il modello YOLOv8 per il rilevamento di bounding box
-model_detect = YOLO(MODEL_PATH_DETECT)
-
-# Addestrare il modello per il rilevamento di oggetti (bounding box)
-model_detect.train(
-    data=BBOX_DATA_YAML_PATH,   # Percorso al file bbox_data.yaml
-    epochs=50,                  # Numero di epoche di addestramento
-    imgsz=640,                  # Dimensione delle immagini (default 640x640)
-    batch=16,                   # Batch size
-    name='yolov8_bounding_box_experiment',  # Nome dell'esperimento
-    task='detect'               # Specifica che è un task di rilevamento
-)
-
-# Percorso del modello per la Segmentazione
-MODEL_PATH_SEG = 'yolov8s-seg.pt'  # Modello YOLOv8 pre-addestrato per la segmentazione
-
-# Inizializzare il modello YOLOv8 per la segmentazione
-model_seg = YOLO(MODEL_PATH_SEG)
-
-# Addestrare il modello per la segmentazione
-model_seg.train(
-    data=SEG_DATA_YAML_PATH,    # Percorso al file seg_data.yaml
-    epochs=50,                  # Numero di epoche di addestramento
-    imgsz=640,                  # Dimensione delle immagini
-    batch=16,                   # Batch size
-    name='yolov8_segmentation_experiment',  # Nome dell'esperimento
-    task='segment'              # Specifica che è un task di segmentazione
-)
-
-# Validare il modello addestrato per i bounding box
-model_detect.val(
-    data=BBOX_DATA_YAML_PATH,   # Percorso al file bbox_data.yaml
-    task='detect'               # Validazione per il rilevamento di oggetti
-)
-
-# Validare il modello addestrato per la segmentazione
-model_seg.val(
-    data=SEG_DATA_YAML_PATH,    # Percorso al file seg_data.yaml
-    task='segment'              # Validazione per la segmentazione
-)
-
-# Effettuare previsioni su nuove immagini utilizzando il modello di bounding box
-model_detect.predict(
-    source='path/to/test/images',  # Percorso alle immagini di test
-    save=True,                     # Salva le previsioni come output
-    task='detect'                  # Previsione dei bounding box
-)
-
-# Effettuare previsioni su nuove immagini utilizzando il modello di segmentazione
-model_seg.predict(
-    source='path/to/test/images',  # Percorso alle immagini di test
-    save=True,                     # Salva le previsioni come output
-    task='segment'                 # Previsione delle maschere di segmentazione
-)
+# Check the response
+if response.status_code == 200:
+    data = response.json()
+    print("Message:", data['message'])
+    print("Detection outputs saved in 'outputs/example_directory/detection/'")
+else:
+    print("Request failed with status code:", response.status_code)
+    print("Detail:", response.json())
 ```
 
-### **5. Procedura di Fine-Tuning**
+### Performing Segmentation
 
-#### **Passo 1: Organizza il tuo Dataset**
-- Assicurati che il dataset sia strutturato correttamente come mostrato sopra.
-- Posiziona le immagini e i file di annotazione (bounding box o maschere di segmentazione) nelle rispettive cartelle.
+```python
+import requests
+import base64
 
-#### **Passo 2: Aggiorna i File di Configurazione del Dataset**
-- Modifica i file `bbox_data.yaml` e `seg_data.yaml` per riflettere i percorsi reali del tuo dataset.
+# Read and encode the image
+with open('input_image.jpg', 'rb') as image_file:
+    image_base64 = base64.b64encode(image_file.read()).decode()
 
-#### **Passo 3: Addestramento di YOLOv8**
-- Esegui lo script Python (`train_yolov8.py`) per effettuare il fine-tuning di YOLOv8 per **bounding box** e **segmentazione**:
-   - Addestramento per **bounding box**:
-     ```bash
-     python train_yolov8.py
-     ```
-   - Addestramento per **segmentazione**:
-     ```bash
-     python train_yolov8.py
-     ```
+# Prepare the payload
+payload = {
+    'image_base64': image_base64,
+    'output_subdir': 'example_directory'  # Optional
+}
 
-#### **Passo 4: Monitoraggio dell'Addestramento**
-- YOLOv8 mostrerà i log di addestramento con metriche come perdita, precisione (mAP), e altre. Puoi visualizzare i progressi di addestramento usando TensorBoard.
+# Send the POST request
+response = requests.post('http://127.0.0.1:8100/predict/segment', json=payload)
 
-#### **Passo 5: Validazione dei Modelli**
-- Dopo l'addestramento, valida i modelli per bounding box e segmentazione:
-   - Per i bounding box:
-     ```bash
-     python train_yolov8.py
-     ```
-   - Per la segmentazione:
-     ```bash
-     python train_yolov8.py
-     ```
+# Check the response
+if response.status_code == 200:
+    data = response.json()
+    print("Message:", data['message'])
+    print("Segmentation outputs saved in 'outputs/example_directory/segmentation/'")
+else:
+    print("Request failed with status code:", response.status_code)
+    print("Detail:", response.json())
+```
 
-#### **Passo 6: Effettua Previsioni**
-- Usa i modelli addestrati per fare previsioni su nuove immagini e salva l'output con bounding box o maschere di segmentazione.
+### Processing an Image
 
-### **6. Distribuzione o Uso dei Modelli Addestrati**
-Dopo aver completato l'addestramento e la validazione, puoi usare i modelli per l'inferenza o distribuirli in diversi ambienti. YOLOv8 supporta l'esportazione in formati come ONNX, CoreML, e altri per una facile integrazione.
+```python
+import requests
+import base64
 
----
+# Read and encode the image
+with open('input_image.jpg', 'rb') as image_file:
+    image_base64 = base64.b64encode(image_file.read()).decode()
+
+# Prepare the payload
+payload = {
+    'image_base64': image_base64,
+    'output_subdir': 'example_directory',
+    'tint_color': [0, 255, 0]  # Optional tint color (green in this example)
+}
+
+# Send the POST request
+response = requests.post('http://127.0.0.1:8100/process/image', json=payload)
+
+# Check the response
+if response.status_code == 200:
+    data = response.json()
+    print("Message:", data['message'])
+    print("Processed image saved in 'outputs/example_directory/processed_image.png'")
+else:
+    print("Request failed with status code:", response.status_code)
+    print("Detail:", response.json())
+```
+
+## Project Structure
+
+```
+.
+├── main.py                  # The main FastAPI application script
+├── outputs/                 # Directory where outputs are saved
+│   └── example_directory/   # Example output subdirectory
+│       ├── detection/       # Detection outputs
+│       ├── segmentation/    # Segmentation outputs
+│       └── processed_image.png  # Processed image
+```
+
+## Customization
+
+- **Model Paths**: Update `DETECT_MODEL_PATH` and `SEG_MODEL_PATH` in `main.py` to point to your trained models.
+- **Output Directory**: The base output directory is `outputs/`. You can change this by modifying the `BASE_OUTPUT_DIR` variable in `main.py`.
+- **Tint Color**: When using the `/process/image` endpoint, you can specify a custom tint color by providing the `tint_color` parameter in the request body.
+
+## Notes
+
+- **Single Object Processing**: The application processes and outputs only the most centrally located object in the image when multiple detections or segmentations are found.
+- **Output Subdirectories**: If `output_subdir` is not specified in the request, a timestamp-based directory will be created under `outputs/`.
+- **Dependencies**: Ensure all required Python packages are installed. Use the provided installation instructions.
+- **Error Handling**: The API includes error handling and will return appropriate HTTP status codes and messages if issues occur.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
