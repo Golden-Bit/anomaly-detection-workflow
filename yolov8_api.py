@@ -15,6 +15,7 @@ from PIL import Image
 import numpy as np
 from ultralytics import YOLO
 import cv2
+import shutil
 
 app = FastAPI()
 
@@ -23,8 +24,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load the YOLOv8 models
-DETECT_MODEL_PATH = "yolov8s.pt" #"'runs/detect/yolov8_bounding_box_experiment4/weights/best.pt'  # Replace with your trained detection model path
-SEG_MODEL_PATH = "yolov8s-seg.pt"# "'runs/segment/yolov8_segmentation_experiment11/weights/best.pt'  # Replace with your trained segmentation model path
+DETECT_MODEL_PATH = 'runs/detect/yolov8_bounding_box_experiment4/weights/best.pt'  # Replace with your trained detection model path
+SEG_MODEL_PATH = 'runs/segment/yolov8_segmentation_experiment11/weights/best.pt'  # Replace with your trained segmentation model path
 
 # Initialize the models
 try:
@@ -256,7 +257,7 @@ def predict_segment(request: ImageRequest):
             contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
             # Annotate image
-            cv2.drawContours(image_np, contours, -1, (0, 255, 0), 2)
+            cv2.drawContours(image_np, contours, -1, (0, 0, 0), 2)
             cv2.putText(
                 image_np,
                 f"{class_name} {confidence:.2f}",
@@ -401,6 +402,40 @@ def process_image(bbox_json_path, segmentation_json_path, image_base64, output_d
     return True
 
 
+def process_image_save_original(image_base64, output_dir):
+    """
+    Simply saves the original image in the segmentation directory with the name 'processed_image.png'.
+
+    Parameters:
+    - image_base64: Base64-encoded string of the input image.
+    - output_dir: Directory where the output image will be saved.
+    """
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Decode base64 image
+    try:
+        image_data = base64.b64decode(image_base64)
+        image = Image.open(BytesIO(image_data)).convert('RGB')
+        image_np = np.array(image)
+    except Exception as e:
+        logger.error(f"Error decoding image: {e}")
+        return False
+
+    # Save the original image with the new name
+    try:
+        processed_image_path = os.path.join(output_dir, 'processed_image.png')
+        processed_image_pil = Image.fromarray(image_np)
+        processed_image_pil.save(processed_image_path)
+        logger.info(f"Original image saved to {processed_image_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving processed image: {e}")
+        return False
+
+
+
+
 # New endpoint to process the image
 class ProcessRequest(BaseModel):
     image_base64: str
@@ -408,7 +443,7 @@ class ProcessRequest(BaseModel):
     tint_color: Optional[List[int]] = None  # RGB color as a list of three integers
 
 
-@app.post("/process/image", response_model=SimpleResponse)
+#@app.post("/process/image", response_model=SimpleResponse)
 def process_image_endpoint(request: ProcessRequest):
     try:
         # Validate tint_color
@@ -417,7 +452,7 @@ def process_image_endpoint(request: ProcessRequest):
                 raise ValueError("tint_color must be a list of three integers between 0 and 255")
             tint_color = tuple(request.tint_color)
         else:
-            tint_color = (0, 255, 0)  # Default green color
+            tint_color = (0, 0, 0)  # Default black color
 
         # Determine the output directory
         output_dir = os.path.join(BASE_OUTPUT_DIR, request.output_subdir)
@@ -453,6 +488,61 @@ def process_image_endpoint(request: ProcessRequest):
         logger.error(f"Error in process_image_endpoint: {e}")
         logger.debug(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def copy_cropped_image(output_dir):
+    """
+    Copies the image named 'cropped_0.png' from the 'segmentation' subdirectory
+    to the main directory specified by `output_dir`.
+
+    Parameters:
+    - output_dir: Main directory containing the subdirectory 'segmentation'.
+
+    Returns:
+    - True if the operation is successful, False otherwise.
+    """
+    try:
+        # Define paths
+        segmentation_dir = os.path.join(output_dir, 'segmentation')
+        source_image_path = os.path.join(segmentation_dir, 'cropped_0.png')
+        destination_image_path = os.path.join(output_dir, 'processed_image.png')
+
+        # Check if the source file exists
+        if not os.path.exists(source_image_path):
+            logger.error(f"Source image '{source_image_path}' not found.")
+            return False
+
+        # Copy the file to the main directory with the new name
+        shutil.copy2(source_image_path, destination_image_path)
+        logger.info(f"Image copied to {destination_image_path}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error copying cropped image: {e}")
+        return False
+
+
+@app.post("/process/image", response_model=SimpleResponse)
+def copy_cropped_image_endpoint(request: ProcessRequest):
+    try:
+        # Determine the main output directory
+        output_dir = os.path.join(BASE_OUTPUT_DIR, request.output_subdir)
+        if not os.path.exists(output_dir):
+            raise HTTPException(status_code=400, detail=f"Output directory '{output_dir}' does not exist.")
+
+        # Call the function to copy the cropped image
+        success = copy_cropped_image(output_dir=output_dir)
+
+        if success:
+            return SimpleResponse(message="Image copied successfully as processed_image.png.")
+        else:
+            raise HTTPException(status_code=500, detail="Copying cropped image failed.")
+
+    except Exception as e:
+        logger.error(f"Error in copy_cropped_image_endpoint: {e}")
+        logger.debug(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 # Run the app

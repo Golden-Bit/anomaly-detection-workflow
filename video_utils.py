@@ -60,7 +60,7 @@ def estrai_frame(api_url, save_dir, frame_interval=30):
 
 
 # Esempio di utilizzo
-api_url = "http://192.168.200.205:5000/get_frame"  # URL dell'API che restituisce il frame in Base64
+api_url = "http://192.168.200.161:5000/get_frame"  # URL dell'API che restituisce il frame in Base64
 save_dir = "outputs"
-frame_interval = 30  # salva un frame ogni 30
+frame_interval = 1  # salva un frame ogni 30
 estrai_frame(api_url, save_dir, frame_interval)
