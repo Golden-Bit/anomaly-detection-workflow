@@ -58,7 +58,7 @@ def predict(image_path,
 def workflow():
 
     #IMAGE_PATH = 'C:\\Users\\Hairemi_1\\Desktop\\anomalib_proj\\anomaly-detection-workflow\outputs\\test_output\clusters\cluster_0\\tile_1_1.png'  # Percorso dell'immagine per l'inferenza
-    ROOT_DIR = 'results/Padim/hazelnut_toy_train_1/latest'  # Directory radice per i risultati di inferenza
+    #ROOT_DIR = 'results/Padim/hazelnut_toy_train_1/latest'  # Directory radice per i risultati di inferenza
     OUTPUT_DIR = 'C:\\Users\\Hairemi_1\\Desktop\\anomalib_proj\\anomaly-detection-workflow\\outputs'
 
     for subdir in os.listdir(OUTPUT_DIR):
@@ -76,9 +76,17 @@ def workflow():
                         output_file = f"{input_tile.split('.')[0]}.json"
                         output_dir = f"{output_subdir}\\predicted_tiles"
 
+                        tile_name = input_tile.split('.')[0]
+                        model_subdirectories = os.listdir('results/Padim')
+
+                        model_subdirectory = [item for item in model_subdirectories if tile_name in item][0]
+
+                        root_dir = f"results/Padim/{model_subdirectory}/latest"
+
                         predict(
                             image_path=input_tile_path,
-                            root_dir=ROOT_DIR,
+                            #root_dir=ROOT_DIR,
+                            root_dir=root_dir,
                             output_dir=output_dir,
                             output_image=output_image,
                             output_file=output_file,
